@@ -174,7 +174,7 @@ void dataFSM(){
         asPtr   = (unsigned char *)&AnswerHeader;   //pointer onto header structure
         _cs = 0xFFFF;
       }
-      if(readCounter >= 127){                       //overrun
+      if(readCounter >= RECV_BUFLEN){                       //overrun
         step = 2;
         break;
       }
