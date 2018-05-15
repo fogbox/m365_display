@@ -34,7 +34,7 @@ void displayFSM(){
   unsigned int remCharge;
   unsigned int Min;
   unsigned int Sec;
-  unsigned int Power; 
+  unsigned int Power;
 
   curh = abs(S25C31.current) / 100;     //current
   curl = abs(S25C31.current) % 100;

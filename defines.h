@@ -63,7 +63,7 @@ struct __attribute__((packed))A23C23{ //skip
   unsigned char u2;
   unsigned char u3; //0x30
   unsigned char u4; //0x09
-  unsigned int  remainMileage;  // /100
+  unsigned int  remainMileage;  // /100 
 }S23C23;
 
 struct __attribute__((packed))A23C3A{
