@@ -54,15 +54,6 @@ void displayFSM(){
 
   display.clearDisplay();
 
-if(S23CB0.speed == 0){
-  display.setFont(&FreeSerifBold24pt7b);
-  display.setCursor(0,45); 
-
-  display.setTextSize(1);
-  display.print("-22.12");
-  display.display();
-  return;
-}
 
 
   display.setFont(NULL);
