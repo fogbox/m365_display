@@ -55,6 +55,25 @@ void displayFSM(){
   display.clearDisplay();
 
 
+  if(S23CB0.speed != 0){
+   display.setFont(&FreeSerifBold24pt7b);
+   display.setCursor(0,45); 
+
+
+   if(S25C31.current < 0){
+     display.print('-');
+   }
+ 
+   display.setTextSize(1);
+
+   display.print(curh);
+   display.print('.');
+   display.print(curl);
+   display.display();
+   return;
+  }
+
+
 
   display.setFont(NULL);
   display.setTextSize(2);
@@ -559,8 +578,8 @@ static unsigned char q12[]= {0x7C, 0x02};   //end20_22
   *ptrBuf++ = *pcs++;
    len+=4; //header + cs
 
-  UCSR0B &= ~_BV(RXEN0);            //send request from auto-switching list
-  XIAOMI_PORT.write((unsigned char*)buf, len); 
+  UCSR0B &= ~_BV(RXEN0);            
+  XIAOMI_PORT.write((unsigned char*)buf, len); //send request
   UCSR0B |= _BV(RXEN0);
 
   RequestTime = millis();
