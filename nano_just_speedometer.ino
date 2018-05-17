@@ -22,10 +22,10 @@ nextQuery();
   _newDataFlag = 1;
 }
 
-void loop() { //cycle time w\o data exchange ~400 us
-  /*
+void loop() { //cycle time w\o data exchange ~8 us :)
+  
   static unsigned long timer = 0;
-  static unsigned int  counter = 0; //perfomance counter
+  static unsigned long  counter = 0; //perfomance counter
   counter++;
 
   if(millis() - timer >= 1000){
@@ -33,7 +33,7 @@ void loop() { //cycle time w\o data exchange ~400 us
     Serial.println(counter);
     counter = 0;
   }
-  */
+  
   
   dataFSM();
 
@@ -76,7 +76,7 @@ struct {
   display.clearDisplay();
 
 
-  if(S23CB0.speed > 10){
+  if(D.sph > 1){
    display.setFont(&FreeSerifBold24pt7b);
    display.setCursor(0,45); 
 
