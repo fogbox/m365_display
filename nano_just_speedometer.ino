@@ -469,6 +469,10 @@ void sendQueryFromTable(unsigned char index){
   unsigned char hLen; //header length
   unsigned char eLen; //ender length
 
+  if(index >= sizeof(_q)){
+    return;
+  }
+
   cmdFormat = pgm_read_byte_near(_f + index);
 
   pp = (unsigned char*)&_h0;
