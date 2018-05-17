@@ -4,6 +4,7 @@
 #include <Adafruit_SSD1306.h>
 #include <./Fonts/FreeSerifBold24pt7b.h>
 #include <gfxfont.h>
+#include <avr/pgmspace.h>
 
 #define OLED_RESET 4
 Adafruit_SSD1306 display(OLED_RESET);
@@ -12,14 +13,31 @@ Adafruit_SSD1306 display(OLED_RESET);
 #error("Height incorrect, please fix Adafruit_SSD1306.h!");
 #endif
 
-
 #define XIAOMI_PORT Serial
+
+const unsigned char _commandsWeWillSend[] = {1, 8, 10}; //select INDEXES of commands, wich will be send in a circle
+
+
+        // INDEX                     //0     1     2     3    etc.
+const unsigned char _q[] PROGMEM = {0x3B, 0x31, 0x20, 0x1B, 0x10, 0x1A, 0x69, 0x3E, 0xB0, 0x23, 0x3A, 0x7C}; //commands
+const unsigned char _l[] PROGMEM = {   2,   10,    6,    4,   18,   12,    2,    2,   32,    6,    4,    2}; //expexted answer length of command
+const unsigned char _f[] PROGMEM = {   1,    1,    1,    1,    1,    2,    2,    2,    2,    2,    2,    2}; //format of packet
+
+
+
+const unsigned char _h0[]    PROGMEM = {0x55, 0xAA};
+const unsigned char _h1[]    PROGMEM = {0x03, 0x22, 0x01};
+const unsigned char _h2[]    PROGMEM = {0x06, 0x20, 0x61};
+const unsigned char _end20[] PROGMEM = {0x02, 0x26, 0x22};
+
 
 const unsigned char RECV_TIMEOUT =  5;
 const unsigned char RECV_BUFLEN  = 64;
 const unsigned char DISPLAY_RENEW_PERIOD =  200;
 
-//структура заголовка ответа принимаемого от контроллера
+volatile unsigned char _newDataFlag = 0; //assign '1' for renew display once
+
+
 struct __attribute__((packed)) ANSWER_HEADER{ //header of receiving answer
   unsigned char len;
   unsigned char addr;
@@ -38,9 +56,6 @@ struct __attribute__((packed))A25C31{
   unsigned char u10;   //2C
   //int i4;
 }S25C31;
-
-//0100
-//6500
 
 struct __attribute__((packed))A23C3E{
   int i1;                           //mainframe temp

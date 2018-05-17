@@ -1,30 +1,52 @@
 #include "defines.h"
 
+
 void setup() {
   XIAOMI_PORT.begin(115200);
+
+nextQuery();
+nextQuery();
+nextQuery();
+nextQuery();
+
+  
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);  // initialize with the I2C addr 0x3C (for the 128x64)
 
-  //display.clearDisplay();
-  //display.setTextColor(WHITE);
-  //display.setTextSize(2);
-  //display.print("BOOT");
-  //display.display();
+  display.clearDisplay();
+  display.setTextColor(WHITE);
+  display.setTextSize(2);
+  display.print("BOOT");
+  display.display();
+  delay(200);
+
+  _newDataFlag = 1;
 }
 
-void loop() { //cycle time ~170 us
+void loop() { //cycle time w\o data exchange ~400 us
+  /*
+  static unsigned long timer = 0;
+  static unsigned int  counter = 0; //perfomance counter
+  counter++;
+
+  if(millis() - timer >= 1000){
+    timer = millis();
+    Serial.println(counter);
+    counter = 0;
+  }
+  */
+  
   dataFSM();
-  displayFSM();
-}
 
+
+  if(_newDataFlag == 1){
+    _newDataFlag = 0;
+    displayFSM();
+  }
+}
 
 void displayFSM(){
-  static unsigned long timer = millis();
 
-  if(millis() - timer < DISPLAY_RENEW_PERIOD){
-    return;
-  }
-  timer = millis();
-
+struct {
   unsigned int sph;
   unsigned int spl;
   unsigned int milh; //mileage current
@@ -34,41 +56,45 @@ void displayFSM(){
   unsigned int remCharge;
   unsigned int Min;
   unsigned int Sec;
-  unsigned int Power;
+}D;
 
-  curh = abs(S25C31.current) / 100;     //current
-  curl = abs(S25C31.current) % 100;
+  D.curh = abs(S25C31.current) / 100;     //current
+  D.curl = abs(S25C31.current) % 100;
 
-  sph = abs(S23CB0.speed) / 1000;       //speed
-  spl = abs(S23CB0.speed) % 1000 / 100;
+  D.sph = abs(S23CB0.speed) / 1000;       //speed
+  D.spl = abs(S23CB0.speed) % 1000 / 100;
 
-  milh = S23CB0.mileageCurrent / 100;   //mileage
-  mill = S23CB0.mileageCurrent % 100;
+  D.milh = S23CB0.mileageCurrent / 100;   //mileage
+  D.mill = S23CB0.mileageCurrent % 100;
 
-  Min = S23C3A.ridingTime / 60;         //riding time
-  Sec = S23C3A.ridingTime % 60;
+  D.Min = S23C3A.ridingTime / 60;         //riding time
+  D.Sec = S23C3A.ridingTime % 60;
 
-  remCharge= S25C31.remainPercent;
+  D.remCharge= S25C31.remainPercent;
 
   display.setTextColor(WHITE);
-
   display.clearDisplay();
 
 
-  if(S23CB0.speed != 0){
+  if(S23CB0.speed > 10){
    display.setFont(&FreeSerifBold24pt7b);
    display.setCursor(0,45); 
 
-
+//current
    if(S25C31.current < 0){
      display.print('-');
    }
  
    display.setTextSize(1);
-
-   display.print(curh);
+  if(D.curh < 10){
+    display.print(' ');
+  }
+   display.print(D.curh);
    display.print('.');
-   display.print(curl);
+   if(D.curl < 10){
+    display.print('0');
+   }
+   display.print(D.curl);
    display.display();
    return;
   }
@@ -81,25 +107,25 @@ void displayFSM(){
   display.setCursor(0,0);
 
 //speed    
-    if(sph < 10){
+    if(D.sph < 10){
       display.print(' ');
     }
-    display.print(sph);
+    display.print(D.sph);
     display.print('.');
-    display.print(spl);
+    display.print(D.spl);
     display.setTextSize(1);
     display.print("k/h ");
 
 //remain charge
     display.setTextSize(2);
     display.print(" ");
-    if(remCharge < 100){
+    if(D.remCharge < 100){
       display.print(' ');
     }
-    if(remCharge < 10){
+    if(D.remCharge < 10){
       display.print(' ');
     }
-    display.print(remCharge);
+    display.print(D.remCharge);
     display.setTextSize(1);
     display.println('\%');
 
@@ -108,16 +134,16 @@ void displayFSM(){
     display.setCursor(0,16); //(x, y)
 
 //current mileage
-    if(milh < 10){
+    if(D.milh < 10){
       display.print(' ');
     }
-    display.print(milh);
+    display.print(D.milh);
     display.print('.');
-    if(mill < 10){
+    if(D.mill < 10){
       display.print('0'); //leading zero
     }
 
-    display.print(mill);
+    display.print(D.mill);
     display.setTextSize(1);
     display.print("km");
     display.setTextSize(2);
@@ -127,29 +153,29 @@ void displayFSM(){
     display.setCursor(0,32); //(x, y)
 
 //time
-    if(Min < 10){
+    if(D.Min < 10){
       display.print(' ');
     }
-    display.print(Min);
+    display.print(D.Min);
     display.print(':');
-    if(Sec < 10){
+    if(D.Sec < 10){
       display.print('0');
     }
-    display.print(Sec);
+    display.print(D.Sec);
 
 
 
 //four row
     display.setCursor(0,48); //(x, y)
-    if(curh < 10){        //current
+    if(D.curh < 10){        //current
       display.print(' ');
     }
-    display.print(curh);
+    display.print(D.curh);
     display.print('.');
-    if(curl < 10){
+    if(D.curl < 10){
       display.print('0');
     }
-    display.print(curl);
+    display.print(D.curl);
 
     display.setTextSize(1);
     display.print("A");
@@ -158,7 +184,6 @@ void displayFSM(){
     display.display();
 
 }
-
 
 void dataFSM(){
   static unsigned char   step = 0, _step = 0, entry = 1;
@@ -185,7 +210,6 @@ void dataFSM(){
       static unsigned char * asPtr; //
       unsigned char bt;
       if(entry){      //init variables
-        //DEBUG_PORT.print("hdr: ");
         memset((void*)&AnswerHeader, 0, sizeof(AnswerHeader));
         bufPtr = _bufPtr;
         readCounter = 0;
@@ -224,7 +248,6 @@ void dataFSM(){
         ipcs = (unsigned int*)(bufPtr-2);
         cs = *ipcs;
         if(cs != _cs){   //check cs
-          //DEBUG_PORT.println("crc_err");
           step = 2;
           break;
         }
@@ -248,6 +271,7 @@ void dataFSM(){
   }
 }
 void processPacket(unsigned char * data, unsigned char len){
+  static unsigned char blePackCounter = 0; //counter for [07 20 65] BLE reports
   unsigned char RawDataLen;
   unsigned char UnknownPacket = 0;
 
@@ -261,7 +285,11 @@ void processPacket(unsigned char * data, unsigned char len){
             case 0x64:
               break;
             case 0x65:
-              sendQuery();               //send request from auto-switching list
+              blePackCounter++;
+              if(blePackCounter >= 5){     //request after every 5 ble report FIXME: magicword
+                nextQuery();
+                blePackCounter = 0;
+              }
               break;
             default: //no suitable hz
               UnknownPacket = 1;
@@ -314,6 +342,7 @@ void processPacket(unsigned char * data, unsigned char len){
       }
       break;
     case 0x23:
+      _newDataFlag = 1;
       switch(AnswerHeader.cmd){
         case 0x1A:
           //if(RawDataLen == sizeof(A23C1A)){
@@ -327,25 +356,25 @@ void processPacket(unsigned char * data, unsigned char len){
             //DEBUG_PORT.println("A23C69_OK");
           //}
           break;
-        case 0x3E:
+        case 0x3E: //mainframe temperature
           if(RawDataLen == sizeof(A23C3E)){
             memcpy((void*)& S23C3E, (void*)data, RawDataLen);
             //DEBUG_PORT.println("A23C3E_OK");
           }
           break;
-        case 0xB0:
+        case 0xB0: //speed, average speed, mileage total, mileage current, power on time, mainframe temp
           if(RawDataLen == sizeof(A23CB0)){
             memcpy((void*)& S23CB0, (void*)data, RawDataLen);
             //DEBUG_PORT.println("A23CB0_OK");
           }
           break;
-        case 0x23:
+        case 0x23: //remain mileage
           if(RawDataLen == sizeof(A23C23)){
             memcpy((void*)& S23C23, (void*)data, RawDataLen);
             //DEBUG_PORT.println("A23C23_OK");
           }
           break;
-        case 0x3A:
+        case 0x3A: //power on time, riding time
           if(RawDataLen == sizeof(A23C3A)){
             memcpy((void*)& S23C3A, (void*)data, RawDataLen);
             //DEBUG_PORT.println("A23C3A_OK");
@@ -368,7 +397,8 @@ void processPacket(unsigned char * data, unsigned char len){
           break;
       }
       break;          
-    case 0x25:    
+    case 0x25:
+      _newDataFlag = 1;
       switch(AnswerHeader.cmd){
         case 0x3B:
           //if(RawDataLen == sizeof(A25C3B)){
@@ -376,7 +406,7 @@ void processPacket(unsigned char * data, unsigned char len){
             //DEBUG_PORT.println("A25C3B_OK");
           //}
           break;
-        case 0x31:
+        case 0x31: //capacity, remain persent, current, voltage
           if(RawDataLen == sizeof(A25C31)){
             memcpy((void*)& S25C31, (void*)data, RawDataLen);
             //DEBUG_PORT.println("A25C31_OK");
@@ -416,27 +446,23 @@ void processPacket(unsigned char * data, unsigned char len){
 
 }
 void sendQuery(){
- static unsigned long RequestTime = millis();
-  if(millis() - RequestTime <= 100){ 
-    return;
-  }
-unsigned char buf[16];
+static unsigned char buf[16];
 unsigned char * ptrBuf;
 unsigned char *ptrData;
 unsigned char len = 0;
 unsigned int  cs;
+unsigned char endEnable = 0;
+
 static unsigned char var = 0;  //variant of query, static
-static unsigned char endEnable = 0;
-
-
-endEnable = 0;
-len = 0;
 
 static unsigned char h0[] = {0x55, 0xAA};
 static unsigned char h1[] = {0x03, 0x22, 0x01};
 static unsigned char h2[] = {0x06, 0x20, 0x61};
 
 static unsigned char end20[]  = {0x02, 0x26, 0x22};
+
+//unsigned char q[] = {0x3B, 0x31, 0x20, 0x1B, 0x10, 0x1A, 0x69, 0x3E, 0xB0, 0x23, 0x3A, 0x7C};
+//unsigned char l[] = {   2,   10,    6,    4,   18,   12,    2,    2,   32,    6,    4,    2};
 
 
 //battery information
@@ -495,7 +521,7 @@ static unsigned char q12[]= {0x7C, 0x02};   //end20_22
     len++;
   }
 
-  switch(var){
+  switch(var){   //select body
     case 0:
       return;
       ptrData = (unsigned char*)&q1;
@@ -582,7 +608,6 @@ static unsigned char q12[]= {0x7C, 0x02};   //end20_22
   XIAOMI_PORT.write((unsigned char*)buf, len); //send request
   UCSR0B |= _BV(RXEN0);
 
-  RequestTime = millis();
 }
 unsigned int calcCs(unsigned char * data, unsigned char len){
   unsigned int cs = 0xFFFF;
@@ -592,4 +617,77 @@ unsigned int calcCs(unsigned char * data, unsigned char len){
   return cs;
 }
 
+void nextQuery(){ //select next command from aray and send
+  static unsigned char index = 0;
 
+  sendQueryFromTable(_commandsWeWillSend[index]);
+
+  index++;
+  if(index >= sizeof(_commandsWeWillSend)){
+    index = 0;
+  }
+}
+
+void sendQueryFromTable(unsigned char index){
+  static unsigned char buf[16];
+  unsigned char * ptrBuf;
+  unsigned int    cs;
+
+  unsigned char * pp; //pointer preamble
+  unsigned char * ph; //pointer header
+  unsigned char * pe; //pointer end
+
+  unsigned char cmdFormat;
+  unsigned char hLen; //header length
+  unsigned char eLen; //ender length
+
+  cmdFormat = pgm_read_byte_near(_f + index);
+
+  pp = (unsigned char*)&_h0;
+  ph = NULL;
+  pe = NULL;
+
+  switch(cmdFormat){
+    case 1: //h1 only
+      ph = (unsigned char*)&_h1;
+      hLen = sizeof(_h1);
+      pe = NULL;
+      break;
+    case 2: //h2 + end20
+      ph = (unsigned char*)&_h2;
+      hLen = sizeof(_h2);
+      pe = (unsigned char*)&_end20;
+      eLen = sizeof(_end20);
+      break;
+  }
+
+  ptrBuf = (unsigned char*)&buf;
+
+  memcpy_P((void*)ptrBuf, (void*)pp, sizeof(_h0));  //copy preamble
+  ptrBuf += sizeof(_h0);
+
+  
+  memcpy_P((void*)ptrBuf, (void*)ph, hLen);         //copy header
+  ptrBuf += hLen;
+  
+  memcpy_P((void*)ptrBuf, (void*)(_q + index), 1);  //copy query
+  ptrBuf++;
+  
+  memcpy_P((void*)ptrBuf, (void*)(_l + index), 1);  //copy expected answer length
+  ptrBuf++;
+
+  if(pe != NULL){
+    memcpy_P((void*)ptrBuf, (void*)pe, eLen);       //if needed - copy ender
+    ptrBuf+= hLen;
+  }
+
+  unsigned char DataLen = ptrBuf - (unsigned char*)&buf[2]; //calculate length of data in buf
+
+  cs = calcCs((unsigned char*)&buf[2], DataLen);    //calculate cs of buffer
+
+  //send request
+  UCSR0B &= ~_BV(RXEN0);
+  XIAOMI_PORT.write((unsigned char*)&buf, DataLen + 2);     //DataLen + length of cs
+  XIAOMI_PORT.write((unsigned char*)&cs, 2);
+  UCSR0B |= _BV(RXEN0);
+}
