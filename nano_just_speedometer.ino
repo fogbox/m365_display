@@ -445,177 +445,6 @@ void processPacket(unsigned char * data, unsigned char len){
   }
 
 }
-void sendQuery(){
-static unsigned char buf[16];
-unsigned char * ptrBuf;
-unsigned char *ptrData;
-unsigned char len = 0;
-unsigned int  cs;
-unsigned char endEnable = 0;
-
-static unsigned char var = 0;  //variant of query, static
-
-static unsigned char h0[] = {0x55, 0xAA};
-static unsigned char h1[] = {0x03, 0x22, 0x01};
-static unsigned char h2[] = {0x06, 0x20, 0x61};
-
-static unsigned char end20[]  = {0x02, 0x26, 0x22};
-
-//unsigned char q[] = {0x3B, 0x31, 0x20, 0x1B, 0x10, 0x1A, 0x69, 0x3E, 0xB0, 0x23, 0x3A, 0x7C};
-//unsigned char l[] = {   2,   10,    6,    4,   18,   12,    2,    2,   32,    6,    4,    2};
-
-
-//battery information
-static unsigned char q1[] = {0x3B, 0x02};
-static unsigned char q2[] = {0x31, 0x0A};                //+++
-static unsigned char q3[] = {0x20, 0x06};
-static unsigned char q4[] = {0x1B, 0x04};
-static unsigned char q5[] = {0x10, 0x12};
-
-//basic info
-static unsigned char q6[] = {0x1A, 0x0C};   //end20_22
-static unsigned char q7[] = {0x69, 0x02};   //end20_22
-static unsigned char q8[] = {0x3E, 0x02};   //end20_22
-
-//main vindow        
-static unsigned char q9[] = {0xB0, 0x20};   //end20_22   //+++
-static unsigned char q10[]= {0x23, 0x06};   //end20_22
-static unsigned char q11[]= {0x3A, 0x04};   //end20_22   //+++
-static unsigned char q12[]= {0x7C, 0x02};   //end20_22
-
-
-  ptrBuf  = (unsigned char*)&buf;
-  ptrData = (unsigned char*)&h0;
-
-  var++;
-  if(var > 11){  //reset var
-    var = 0;
-  }
-
-  for(int i = 2; i > 0 ;i--){ //copy h0
-    *ptrBuf++ = *ptrData++;
-  }
-
-  switch(var){
-    case 0:
-    case 1:
-    case 2:
-    case 3:
-    case 4:
-      ptrData = (unsigned char *)&h1;
-      break;
-    case 5:
-    case 6:
-    case 7:
-    case 8:
-    case 9:
-    case 10:
-    case 11:
-      endEnable = 1;
-      ptrData = (unsigned char *)&h2;
-      break;
-  }
-
-  for(int i = 3; i > 0 ;i--){ //copy h1 or h2
-    *ptrBuf++ = *ptrData++;
-    len++;
-  }
-
-  switch(var){   //select body
-    case 0:
-      return;
-      ptrData = (unsigned char*)&q1;
-      break;
-    case 1:
-      ptrData = (unsigned char*)&q2; //+++
-      break;
-    case 2:
-      return;
-      ptrData = (unsigned char*)&q3;
-    break;
-    case 3:
-      return;
-      ptrData = (unsigned char*)&q4;
-    break;
-    case 4:
-      return;
-      ptrData = (unsigned char*)&q5;
-    break;
-    case 5:
-      return;
-      ptrData = (unsigned char*)&q6;
-      //endEnable = 1;
-    break;
-    case 6:
-      return;
-      ptrData = (unsigned char*)&q7;
-      //endEnable = 1;
-    break;
-    case 7:
-      return;
-      ptrData = (unsigned char*)&q8;
-      //endEnable = 1;
-    break;
-    case 8:
-      ptrData = (unsigned char*)&q9; //+++
-      //endEnable = 1;
-    break;
-    case 9:
-      return;
-      ptrData = (unsigned char*)&q10;
-      //endEnable = 1;
-    break;
-    case 10:
-      ptrData = (unsigned char*)&q11; //+++
-      //endEnable = 1;
-    break;
-    case 11:
-      return;
-      ptrData = (unsigned char*)&q12;
-      //endEnable = 1;
-    break;
-    default:
-      return;
-      //DEBUG_PORT.print("ERROR");
-      return;
-    break;
-  }
-
-  for(int i = 2; i > 0 ;i--){ //copy body
-    *ptrBuf++ = *ptrData++;
-    len++;
-  }
-
-  static unsigned char * endPtr;
-  endPtr = (unsigned char*)&end20;
-
-  if(endEnable == 1){
-    for(int i = 3; i > 0 ;i--){ //copy ender (if needed)
-      *ptrBuf++ = *endPtr++;
-      len++;
-    }
-  }
-  static unsigned char * pcs;
-  pcs = (unsigned char*) &cs;
-
-  cs = calcCs((unsigned char*)&buf[2], len);
-
-  *ptrBuf++ = *pcs++;  //copy cs into buf
-  *ptrBuf++ = *pcs++;
-   len+=4; //header + cs
-
-  UCSR0B &= ~_BV(RXEN0);            
-  XIAOMI_PORT.write((unsigned char*)buf, len); //send request
-  UCSR0B |= _BV(RXEN0);
-
-}
-unsigned int calcCs(unsigned char * data, unsigned char len){
-  unsigned int cs = 0xFFFF;
-  for(int i = len; i > 0; i--){
-    cs -= *data++;
-  }
-  return cs;
-}
 
 void nextQuery(){ //select next command from aray and send
   static unsigned char index = 0;
@@ -627,7 +456,6 @@ void nextQuery(){ //select next command from aray and send
     index = 0;
   }
 }
-
 void sendQueryFromTable(unsigned char index){
   static unsigned char buf[16];
   unsigned char * ptrBuf;
@@ -690,4 +518,12 @@ void sendQueryFromTable(unsigned char index){
   XIAOMI_PORT.write((unsigned char*)&buf, DataLen + 2);     //DataLen + length of cs
   XIAOMI_PORT.write((unsigned char*)&cs, 2);
   UCSR0B |= _BV(RXEN0);
+}
+
+unsigned int calcCs(unsigned char * data, unsigned char len){
+  unsigned int cs = 0xFFFF;
+  for(int i = len; i > 0; i--){
+    cs -= *data++;
+  }
+  return cs;
 }
