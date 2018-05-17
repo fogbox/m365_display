@@ -23,7 +23,7 @@ nextQuery();
 }
 
 void loop() { //cycle time w\o data exchange ~8 us :)
-  
+  /*
   static unsigned long timer = 0;
   static unsigned long  counter = 0; //perfomance counter
   counter++;
@@ -33,7 +33,7 @@ void loop() { //cycle time w\o data exchange ~8 us :)
     Serial.println(counter);
     counter = 0;
   }
-  
+  */
   
   dataFSM();
 
