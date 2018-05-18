@@ -3,36 +3,30 @@
 
 void setup() {
   XIAOMI_PORT.begin(115200);
-
-nextQuery();
-nextQuery();
-nextQuery();
-nextQuery();
-
   
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);  // initialize with the I2C addr 0x3C (for the 128x64)
 
-  display.clearDisplay();
-  display.setTextColor(WHITE);
-  display.setTextSize(2);
-  display.print("BOOT");
-  display.display();
-  delay(200);
+  display.clearDisplay();      //------------------------------
+  display.setTextColor(WHITE); //
+  display.setTextSize(2);      //this segment for debug only
+  display.print("BOOT");       //
+  display.display();           //
+  delay(200);                  // -----------------------------
 
   _newDataFlag = 1;
 }
 
 void loop() { //cycle time w\o data exchange ~8 us :)
   /*
-  static unsigned long timer = 0;
-  static unsigned long  counter = 0; //perfomance counter
+  static unsigned long timer = 0;   //----------------------
+  static unsigned long  counter = 0; 
   counter++;
 
-  if(millis() - timer >= 1000){
+  if(millis() - timer >= 1000){     //simple perfomance counter
     timer = millis();
     Serial.println(counter);
     counter = 0;
-  }
+  }                                 //-----------------------
   */
   
   dataFSM();
@@ -46,17 +40,17 @@ void loop() { //cycle time w\o data exchange ~8 us :)
 
 void displayFSM(){
 
-struct {
-  unsigned int sph;
-  unsigned int spl;
-  unsigned int milh; //mileage current
-  unsigned int mill;
-  unsigned int curh;
-  unsigned int curl;
-  unsigned int remCharge;
-  unsigned int Min;
-  unsigned int Sec;
-}D;
+  struct {
+    unsigned int sph;
+    unsigned int spl;
+    unsigned int milh; //mileage current
+    unsigned int mill;
+    unsigned int curh;
+    unsigned int curl;
+    unsigned int remCharge;
+    unsigned int Min;
+    unsigned int Sec;
+  }D;
 
   D.curh = abs(S25C31.current) / 100;     //current
   D.curl = abs(S25C31.current) % 100;
@@ -71,6 +65,34 @@ struct {
   D.Sec = S23C3A.ridingTime % 60;
 
   D.remCharge= S25C31.remainPercent;
+
+  _ControlsState.Word = 0;
+  if(S20C00HZ65.brake > BRAKE_RELEASED_TRESHOLD){
+    _ControlsState.cc.brake = 1;
+  }
+  if(S20C00HZ65.throttle > THROTTLE_RELEASED_TRESHOLD){
+    _ControlsState.cc.throttle = 1;
+  }
+  if(S23CB0.speed > 1000){
+    _ControlsState.cc.in_move = 1;
+  }
+
+//here we can select individual screen for various move conditions
+  switch(_ControlsState.Word){
+    case 0:                   //does not move, throttle & brake released
+      break;
+    case (BRAKE):             //does not move, brake depressed, throttle released
+      break;
+    case (THROTTLE):          //does not move, throttle depressed, brake released
+      break;
+    case (BRAKE + THROTTLE):  //does not move, throttle & brake depressed
+      break;
+    case (IN_MOVE + THROTTLE):
+      break;
+    default:                  //other conditions
+      break;
+  }
+
 
   display.setTextColor(WHITE);
   display.clearDisplay();
@@ -285,11 +307,12 @@ void processPacket(unsigned char * data, unsigned char len){
             case 0x64:
               break;
             case 0x65:
-              blePackCounter++;
+              blePackCounter++; 
               if(blePackCounter >= 5){     //request after every 5 ble report FIXME: magicword
                 nextQuery();
                 blePackCounter = 0;
               }
+              memcpy((void*)& S20C00HZ65, (void*)data, RawDataLen);
               break;
             default: //no suitable hz
               UnknownPacket = 1;
