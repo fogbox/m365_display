@@ -15,37 +15,28 @@ Adafruit_SSD1306 display(OLED_RESET);
 
 #define XIAOMI_PORT Serial
 
-volatile unsigned char _newDataFlag = 0; //assign '1' for renew display once
+const unsigned char _commandsWeWillSend[] = {1, 8, 10}; //select INDEXES of commands, wich will be send in a circle
 
-const unsigned char _commandsWeWillSend[] = {1, 8, 10}; //insert INDEXES of commands, wich will be send in a circle
 
         // INDEX                     //0     1     2     3    etc.
 const unsigned char _q[] PROGMEM = {0x3B, 0x31, 0x20, 0x1B, 0x10, 0x1A, 0x69, 0x3E, 0xB0, 0x23, 0x3A, 0x7C}; //commands
 const unsigned char _l[] PROGMEM = {   2,   10,    6,    4,   18,   12,    2,    2,   32,    6,    4,    2}; //expexted answer length of command
 const unsigned char _f[] PROGMEM = {   1,    1,    1,    1,    1,    2,    2,    2,    2,    2,    2,    2}; //format of packet
 
-//wrappers for known commands
+
+
 const unsigned char _h0[]    PROGMEM = {0x55, 0xAA};
 const unsigned char _h1[]    PROGMEM = {0x03, 0x22, 0x01};
 const unsigned char _h2[]    PROGMEM = {0x06, 0x20, 0x61};
 const unsigned char _end20[] PROGMEM = {0x02, 0x26, 0x22};
 
 
-const unsigned char BRAKE_RELEASED_TRESHOLD    = 40; //full range (35 -)    range may be different from one to other machines
-const unsigned char THROTTLE_RELEASED_TRESHOLD = 43; //full range (38 - 196)
 const unsigned char RECV_TIMEOUT =  5;
 const unsigned char RECV_BUFLEN  = 64;
+const unsigned char DISPLAY_RENEW_PERIOD =  200;
 
-//
-enum {IN_MOVE = 1, THROTTLE = 2, BRAKE = 4};
-union {
-  unsigned char Word;
-  struct __attribute__((packed))__{
-    unsigned char in_move  :1; //speed != 0
-    unsigned char throttle :1; //throttle depressed
-    unsigned char brake    :1; //brake depressed
-  }cc;
-}_ControlsState;
+volatile unsigned char _newDataFlag = 0; //assign '1' for renew display once
+
 
 struct __attribute__((packed)) ANSWER_HEADER{ //header of receiving answer
   unsigned char len;
@@ -55,7 +46,6 @@ struct __attribute__((packed)) ANSWER_HEADER{ //header of receiving answer
 } AnswerHeader;
 
 
-//55AA   07  20 65   00  04 26 22 00 00 27 FF
 struct __attribute__((packed))A20C00HZ65{
   unsigned char hz1;
   unsigned char throttle; //throttle
