@@ -6,7 +6,7 @@
 #include <gfxfont.h>
 #include <avr/pgmspace.h>
 
-#define OLED_RESET 4
+#define OLED_RESET -1
 Adafruit_SSD1306 display(OLED_RESET);
 
 #if (SSD1306_LCDHEIGHT != 64)

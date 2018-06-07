@@ -1,6 +1,6 @@
 #include "defines.h"
 
-#define PASSIVE_MODE   //*********   for test purposes, disables data requests and just listen BUS
+//#define PASSIVE_MODE   //*********   for test purposes, disables data requests and just listen BUS
 
 void setup() {
   XIAOMI_PORT.begin(115200);
