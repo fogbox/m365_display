@@ -277,7 +277,6 @@ void dataFSM(){
   }
 }
 void processPacket(unsigned char * data, unsigned char len){
-  static unsigned char blePackCounter = 0; //counter for [07 20 65] BLE reports
   unsigned char RawDataLen;
   unsigned char UnknownPacket = 0;
 
@@ -291,16 +290,11 @@ void processPacket(unsigned char * data, unsigned char len){
             case 0x64:
               break;
             case 0x65:
-              blePackCounter++;
-              if(blePackCounter >= 5){     //request after every 5 ble report FIXME: magicword
-                #ifndef PASSIVE_MODE
-                nextQuery();
-                #endif
-                blePackCounter = 0;
-                #ifdef PASSIVE_MODE
-                _newDataFlag = 1;
-                #endif
-              }
+              #ifdef PASSIVE_MODE
+              _newDataFlag = 1;
+              #else
+              nextQuery();
+              #endif
               memcpy((void*)& S20C00HZ65, (void*)data, RawDataLen);
               break;
             default: //no suitable hz
@@ -371,24 +365,28 @@ void processPacket(unsigned char * data, unsigned char len){
         case 0x3E: //mainframe temperature
           if(RawDataLen == sizeof(A23C3E)){
             memcpy((void*)& S23C3E, (void*)data, RawDataLen);
+            _newDataFlag = 1;
             //DEBUG_PORT.println("A23C3E_OK");
           }
           break;
         case 0xB0: //speed, average speed, mileage total, mileage current, power on time, mainframe temp
           if(RawDataLen == sizeof(A23CB0)){
             memcpy((void*)& S23CB0, (void*)data, RawDataLen);
+            _newDataFlag = 1;
             //DEBUG_PORT.println("A23CB0_OK");
           }
           break;
         case 0x23: //remain mileage
           if(RawDataLen == sizeof(A23C23)){
             memcpy((void*)& S23C23, (void*)data, RawDataLen);
+            _newDataFlag = 1;
             //DEBUG_PORT.println("A23C23_OK");
           }
           break;
         case 0x3A: //power on time, riding time
           if(RawDataLen == sizeof(A23C3A)){
             memcpy((void*)& S23C3A, (void*)data, RawDataLen);
+            _newDataFlag = 1;
             //DEBUG_PORT.println("A23C3A_OK");
           }
           break;
@@ -421,6 +419,7 @@ void processPacket(unsigned char * data, unsigned char len){
         case 0x31: //capacity, remain persent, current, voltage
           if(RawDataLen == sizeof(A25C31)){
             memcpy((void*)& S25C31, (void*)data, RawDataLen);
+            _newDataFlag = 1;
             //DEBUG_PORT.println("A25C31_OK");
           }
           break;
@@ -498,8 +497,14 @@ void sendQueryFromTable(unsigned char index){
     case 2: //h2 + end20
       ph = (unsigned char*)&_h2;
       hLen = sizeof(_h2);
-      pe = (unsigned char*)&_end20;
-      eLen = sizeof(_end20);
+
+      //BUGFIX: bug with extra-brake
+      _end20t.hz = 0x02;
+      _end20t.th = S20C00HZ65.throttle;
+      _end20t.br = S20C00HZ65.brake;
+      pe = (unsigned char*)&_end20t;
+      eLen = sizeof(_end20t);
+
       break;
   }
 
@@ -519,7 +524,7 @@ void sendQueryFromTable(unsigned char index){
   ptrBuf++;
 
   if(pe != NULL){
-    memcpy_P((void*)ptrBuf, (void*)pe, eLen);       //if needed - copy ender
+    memcpy((void*)ptrBuf, (void*)pe, eLen);       //if needed - copy ender
     ptrBuf+= hLen;
   }
 

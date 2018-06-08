@@ -1,5 +1,6 @@
 #include <SPI.h>
 #include <Wire.h>
+//#include <U8g2lib.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
@@ -22,22 +23,29 @@ Adafruit_SSD1306 display(OLED_RESET);
 #endif
 
 #define XIAOMI_PORT Serial
+#define RX_DISABLE UCSR0B &= ~_BV(RXEN0);
+#define RX_ENABLE  UCSR0B |=  _BV(RXEN0);
 
 //available screens
-enum {NONE, MILLEAGE, TEST, BATT, TRIP, MENU, BIG_SPEED, BIG_CURRENT, BIG_AVERAGE, BIG_REMAIN, BIG_MILLEAGE, BIG_SPENT, CELLS, CHARGING, NO_BIG, BIG_VOLTS};
+enum {NONE, MILEAGE, TEST, BATT, TRIP, MENU, BIG_SPEED, BIG_CURRENT, BIG_AVERAGE, BIG_REMAIN, BIG_MILEAGE, BIG_SPENT, CELLS, CHARGING, NO_BIG, BIG_VOLTS};
 //available messages
 enum {MESSAGE_KEY_TH = 0, MESSAGE_KEY_BR, MESSAGE_KEY_BOTH, MESSAGE_KEY_MENU, MESSAGE_KEY_RELEASED, MESSAGE_KEY_TH_LONG, MESSAGE_KEY_BR_LONG, MESSAGE_KEY_ANY};
 
 
 struct {
+  unsigned char ble2065;  //ble -> ecu
+  unsigned char ble2164;  //ecu -> ble
   unsigned char prepared; //1 if prepared, 0 after writing
   unsigned char DataLen;  //lenght of data to write
   unsigned char buf[16];  //buffer
   unsigned int  cs;       //cs of data into buffer
+  unsigned long timeHZ65; //th br reports
+  unsigned long timeHZ64; //ecu into ble answer
+  unsigned char _dynQueries[5];
+  unsigned char _dynSize = 0;
 }_Query;
 
-volatile unsigned char _dynQueries[5];
-volatile unsigned char _dynSize = 0;
+
 volatile unsigned char _NewDataFlag = 0; //assign '1' for renew display once
 
 
@@ -67,16 +75,20 @@ const unsigned char _f[] PROGMEM = {   1,    1,    1,    1,    1,    2,    2,   
 const unsigned char _h0[]    PROGMEM = {0x55, 0xAA};
 const unsigned char _h1[]    PROGMEM = {0x03, 0x22, 0x01};
 const unsigned char _h2[]    PROGMEM = {0x06, 0x20, 0x61};
-const unsigned char _end20[] PROGMEM = {0x02, 0x26, 0x22};
+
 //const unsigned char _h3[]    PROGMEM = {0x04, 0x20, 0x03};
+
+//BUGFIX: 
+struct __attribute__ ((packed)){
+  unsigned char hz;
+  unsigned char th;
+  unsigned char br; 
+}_end20t;
 
 volatile struct {
   unsigned char activeMenu; //0 - nomenu (0,1,2,3,4)
-  unsigned char activeItem; // item (0, 1, n)
   unsigned char selItem;
-  unsigned char off;
   unsigned char bigVar;  //variant of big digits in riding mode (speed > 1kmh)
-  //unsigned char notMovingDisp;  //variant of display when speed below 1 kmh
   unsigned char dispVar; //variant of data on display (menu, big, min)
 }_Menu;
 
@@ -94,16 +106,17 @@ const char m1[]  PROGMEM = {"ON"};
 const char m2[]  PROGMEM = {"OFF"};
 
 const char bm1[] PROGMEM = {"SPEED"};
-const char bm2[] PROGMEM = {"CURRENT"};
-const char bm3[] PROGMEM = {"SPENT B"};
-const char bm4[] PROGMEM = {"MILLEAGE"};
-const char bm5[] PROGMEM = {"BIG VOLT"};
-const char bm6[] PROGMEM = {"NO BIG"};
+const char bm2[] PROGMEM = {"AVERAGE"};
+const char bm3[] PROGMEM = {"CURRENT"};
+const char bm4[] PROGMEM = {"SPENT %"};
+const char bm5[] PROGMEM = {"MILEAGE"};
+const char bm6[] PROGMEM = {"BIG VOLT"};
+const char bm7[] PROGMEM = {"NO BIG"};
 
 const char * menuMainItems[]  = {mm1, mm2, mm3, mm4};
 const char * menuRecupItems[] = {rm1, rm2, rm3};
 const char * menuOnOffItems[] = {m1,  m2};
-const char * menuBigItems[]   = {bm1, bm2, bm3, bm4, bm5, bm6};
+const char * menuBigItems[]   = {bm1, bm2, bm3, bm4, bm5, bm6, bm7};
 
 
 
@@ -114,25 +127,13 @@ const unsigned char RECV_TIMEOUT =  5;
 const unsigned char RECV_BUFLEN  = 64;
 
 
-//enum {KEY_NO = 0, KEY_BR, KEY_TH, KEY_BOTH};
 
-
-//const unsigned int  KEY_TRES = 200; //ms
 const unsigned int  MENU_INITIAL = 100; //ms
 const unsigned char TH_KEY_TRES =   50; //38-190;
 const unsigned char BR_KEY_TRES =   45; //35-
 const unsigned int  LONG_PRESS  = 500;  //
 
 
-volatile union {
-  unsigned char Word;
-  struct __attribute__((packed))__{
-    unsigned char in_move  :1; //speed != 0
-    unsigned char throttle :1; //throttle depressed
-    unsigned char brake    :1; //brake depressed
-    unsigned char charging :1;
-  }cc;
-}_ControlsState2;
 
 volatile struct { //D
     //unsigned char recup;  //0 - weak, 1 - medium, 2 - strong
@@ -147,6 +148,8 @@ volatile struct { //D
     unsigned int  chargedCapacity;
     unsigned int  sph; //1  km/h
     unsigned int  spl; //0.01 km/h
+    unsigned int  aveh; //average
+    unsigned int  avel;
     unsigned int  milh; //mileage current
     unsigned int  mill;
     unsigned int  curh; //current

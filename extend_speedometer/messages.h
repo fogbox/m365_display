@@ -6,9 +6,9 @@
 
 #include "Arduino.h"
 
-#define DROP  0
-#define NEW   1
-#define READY 2
+const unsigned char DROP  = 0;
+const unsigned char NEW   = 1;
+const unsigned char READY = 2;
 
 
 class MessagesClass

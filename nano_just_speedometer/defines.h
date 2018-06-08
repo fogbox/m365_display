@@ -28,8 +28,13 @@ const unsigned char _f[] PROGMEM = {   1,    1,    1,    1,    1,    2,    2,   
 const unsigned char _h0[]    PROGMEM = {0x55, 0xAA};
 const unsigned char _h1[]    PROGMEM = {0x03, 0x22, 0x01};
 const unsigned char _h2[]    PROGMEM = {0x06, 0x20, 0x61};
-const unsigned char _end20[] PROGMEM = {0x02, 0x26, 0x22};
-
+//const unsigned char _end20[] PROGMEM = {0x02, 0x26, 0x22};
+//BUGFIX: 
+struct __attribute__ ((packed)){
+  unsigned char hz;
+  unsigned char th;
+  unsigned char br; 
+}_end20t;
 
 const unsigned char RECV_TIMEOUT =  5;
 const unsigned char RECV_BUFLEN  = 64;
@@ -46,7 +51,7 @@ struct __attribute__((packed)) ANSWER_HEADER{ //header of receiving answer
 } AnswerHeader;
 
 
-struct __attribute__((packed))A20C00HZ65{
+volatile struct __attribute__((packed))A20C00HZ65{
   unsigned char hz1;
   unsigned char throttle; //throttle
   unsigned char brake; //brake
