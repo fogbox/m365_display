@@ -1,14 +1,14 @@
 #ifndef MESSAGES_h
 #define MESSAGES_h
 
-#define MAX_MESSAGES  30
-#define MAX_BROADCAST 10
+#define MAX_MESSAGES  15
+#define MAX_BROADCAST  1
 
 #include "Arduino.h"
 
-const unsigned char DROP  = 0;
-const unsigned char NEW   = 1;
-const unsigned char READY = 2;
+#define DROP  0
+#define NEW   1
+#define READY 2
 
 
 class MessagesClass

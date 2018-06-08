@@ -36,21 +36,22 @@ void setup() {
   display.display();
   delay(200);
 
-displayRoutine(CELLS);
-
   _Menu.dispVar = TRIP;
   _Menu.bigVar = eeprom_read_byte(0);
 }
 
 
 void loop() {
-
-  static unsigned long timer = 0;
-  static unsigned long counter = 0; //----------------------
+  static unsigned long timer     = 0;
+  static unsigned int  counter   = 0;
+  static unsigned int  loopsTime = 0;
   counter++;
 
   if(counter >= 1000){
-    D.loopsTime = millis() - timer;
+    loopsTime = millis() - timer;
+    if(loopsTime > D.loopsTime){
+      D.loopsTime = loopsTime;
+    }
     timer = millis();
     counter = 0;
   }
@@ -72,7 +73,7 @@ void loop() {
   }
 
   Message.Process();
-  Message.ProcessBroadcast();
+  //Message.ProcessBroadcast();
 }
 
 void screenSwitcherFSM(){ //switch screen between stall and run (BIG_DIGITS) modes
@@ -569,6 +570,14 @@ void displayRoutine(unsigned char var){
   display.clearDisplay();
 
   switch(var){
+    case HIBERNATE:
+      display.setFont(NULL);
+      display.setTextSize(2);
+      display.setCursor(0,0);
+      display.println("HIBERNATE");
+      display.print("Lt: ");
+      display.println(D.loopsTime);
+      break;
     case BIG_AVERAGE:
       printBig(S23CB0.averageSpeed / 10, "Ave");
       break;
@@ -644,7 +653,7 @@ void displayRoutine(unsigned char var){
       display.print((int)D.temp1);
       display.print(" t2:");
       display.print((int)D.temp2);
-      display.print(F(" LC:"));
+      display.print(F(" Lt:"));
       display.print((unsigned int)D.loopsTime);
       break;
     case CHARGING:
@@ -687,6 +696,11 @@ void displayRoutine(unsigned char var){
       display.print(left);
       display.println('\%');
       //--------------------------
+      /*
+      display.print(D.th);
+      display.print(' ');
+      display.print(D.br);
+      */
       display.print("Tim:");
       if(D.powerMin < 100){
         display.print(' '); 
@@ -1195,7 +1209,7 @@ void processPacket(unsigned char * data, unsigned char len){
             case 0x64: //BLE ask controller
               break;
             case 0x65:
-              if(_Query.prepared == 1){
+              if(_Query.prepared == 1){// && _Hibernate == 0){
                 writeQuery();
               }
               memcpy((void*)& S20C00HZ65, (void*)data, RawDataLen);
@@ -1278,7 +1292,6 @@ void processPacket(unsigned char * data, unsigned char len){
           break;
         case 0xB0: //speed, average speed, mileage total, mileage current, power on time, mainframe temp
           if(RawDataLen == sizeof(A23CB0)){
-            //_NewDataFlag = 1;
             memcpy((void*)& S23CB0, (void*)data, RawDataLen);
             //DEBUG_PORT.println("A23CB0_OK");
           }
@@ -1347,6 +1360,7 @@ void processPacket(unsigned char * data, unsigned char len){
           //}
           break;
         case 0x1B:
+          //_Hibernate = 1;
           //if(RawDataLen == sizeof(A25C1B)){
           //  memcpy((void*)& S25C1B, (void*)data, RawDataLen);
             //DEBUG_PORT.println("A25C1B_OK");
@@ -1405,7 +1419,6 @@ void prepareNextQuery(){
       _Query._dynQueries[0] =  1;
       _Query._dynQueries[1] =  8;
       _Query._dynSize = 2;
-    
       break;
     case MENU:
       break;

@@ -25,7 +25,7 @@ Adafruit_SSD1306 display(OLED_RESET);
 #define RX_ENABLE  UCSR0B |=  _BV(RXEN0);
 
 //available screens
-enum {NONE, MILEAGE, TEST, BATT, TRIP, MENU, BIG_SPEED, BIG_CURRENT, BIG_AVERAGE, BIG_REMAIN, BIG_MILEAGE, BIG_SPENT, CELLS, CHARGING, NO_BIG, BIG_VOLTS};
+enum {NONE, MILEAGE, TEST, BATT, TRIP, MENU, BIG_SPEED, BIG_CURRENT, BIG_AVERAGE, BIG_REMAIN, BIG_MILEAGE, BIG_SPENT, CELLS, CHARGING, NO_BIG, BIG_VOLTS, HIBERNATE};
 //available messages
 enum {MESSAGE_KEY_TH = 0, MESSAGE_KEY_BR, MESSAGE_KEY_BOTH, MESSAGE_KEY_MENU, MESSAGE_KEY_RELEASED, MESSAGE_KEY_TH_LONG, MESSAGE_KEY_BR_LONG, MESSAGE_KEY_ANY};
 
@@ -40,7 +40,7 @@ struct {
 }_Query;
 
 volatile unsigned char _NewDataFlag = 0; //assign '1' for renew display once
-
+//volatile unsigned char _Hibernate = 0;   //flag safely flashing main controller
 
 const unsigned char cruiseOn[]  PROGMEM  = {0x55, 0xAA, 0x04, 0x20, 0x03, 0x7C, 0x01, 0x00};
 const unsigned char cruiseOff[] PROGMEM  = {0x55, 0xAA, 0x04, 0x20, 0x03, 0x7C, 0x00, 0x00};
@@ -119,8 +119,8 @@ const unsigned char RECV_BUFLEN  = 64;
 
 
 const unsigned int  MENU_INITIAL = 100; //ms
-const unsigned char TH_KEY_TRES  =  50; //38-190;
-const unsigned char BR_KEY_TRES  =  45; //35-
+const unsigned char TH_KEY_TRES  =  52; //38-190;
+const unsigned char BR_KEY_TRES  =  40; //35-169
 const unsigned int  LONG_PRESS   = 500;  //
 
 
