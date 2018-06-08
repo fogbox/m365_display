@@ -36,6 +36,7 @@ void setup() {
   display.display();
   delay(200);
 
+displayRoutine(CELLS);
 
   _Menu.dispVar = TRIP;
   _Menu.bigVar = eeprom_read_byte(0);
@@ -45,16 +46,14 @@ void setup() {
 void loop() {
 
   static unsigned long timer = 0;
-  static unsigned long counter = 0, _counter = 0; //----------------------
+  static unsigned long counter = 0; //----------------------
   counter++;
 
-  if(millis() - timer >= 1000){     //simple perfomance counter
+  if(counter >= 1000){
+    D.loopsTime = millis() - timer;
     timer = millis();
-    if(counter > _counter){
-      _counter = counter;
-    }
-  }                                 //-----------------------
-
+    counter = 0;
+  }
 
   dataFSM();  
   keyProcessFSM();
@@ -645,6 +644,8 @@ void displayRoutine(unsigned char var){
       display.print((int)D.temp1);
       display.print(" t2:");
       display.print((int)D.temp2);
+      display.print(F(" LC:"));
+      display.print((unsigned int)D.loopsTime);
       break;
     case CHARGING:
       display.setFont(NULL);
@@ -1372,7 +1373,6 @@ void processPacket(unsigned char * data, unsigned char len){
       break;
     }
   }
-
 }
 
 void prepareNextQuery(){

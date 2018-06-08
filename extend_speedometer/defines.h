@@ -1,16 +1,14 @@
 #include <SPI.h>
 #include <Wire.h>
-//#include <U8g2lib.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-
 #include <gfxfont.h>
+
 #include <avr/pgmspace.h>
-#include <messages.h>
+#include "messages.h"
 #include <avr/eeprom.h>
 
 #define FONT FreeSerifBoldItalic18pt7b
-
 #include <./Fonts/FreeSerifBoldItalic18pt7b.h>
 
 MessagesClass Message;
@@ -33,18 +31,13 @@ enum {MESSAGE_KEY_TH = 0, MESSAGE_KEY_BR, MESSAGE_KEY_BOTH, MESSAGE_KEY_MENU, ME
 
 
 struct {
-  unsigned char ble2065;  //ble -> ecu
-  unsigned char ble2164;  //ecu -> ble
   unsigned char prepared; //1 if prepared, 0 after writing
   unsigned char DataLen;  //lenght of data to write
   unsigned char buf[16];  //buffer
   unsigned int  cs;       //cs of data into buffer
-  unsigned long timeHZ65; //th br reports
-  unsigned long timeHZ64; //ecu into ble answer
   unsigned char _dynQueries[5];
   unsigned char _dynSize = 0;
 }_Query;
-
 
 volatile unsigned char _NewDataFlag = 0; //assign '1' for renew display once
 
@@ -85,11 +78,11 @@ struct __attribute__ ((packed)){
   unsigned char br; 
 }_end20t;
 
-volatile struct {
+struct {
   unsigned char activeMenu; //0 - nomenu (0,1,2,3,4)
   unsigned char selItem;
-  unsigned char bigVar;  //variant of big digits in riding mode (speed > 1kmh)
-  unsigned char dispVar; //variant of data on display (menu, big, min)
+  unsigned char bigVar;     //variant of big digits in riding mode (speed > 1kmh)
+  unsigned char dispVar;    //variant of data on display (menu, big, min)
 }_Menu;
 
 
@@ -119,23 +112,20 @@ const char * menuOnOffItems[] = {m1,  m2};
 const char * menuBigItems[]   = {bm1, bm2, bm3, bm4, bm5, bm6, bm7};
 
 
-
-
 //const unsigned char BR_RELEASED_TRES = 40; //full range (35 -)    range may be different from one to other machines
 //const unsigned char TH_RELEASED_TRES = 43; //full range (38 - 196)
 const unsigned char RECV_TIMEOUT =  5;
 const unsigned char RECV_BUFLEN  = 64;
 
 
-
 const unsigned int  MENU_INITIAL = 100; //ms
-const unsigned char TH_KEY_TRES =   50; //38-190;
-const unsigned char BR_KEY_TRES =   45; //35-
-const unsigned int  LONG_PRESS  = 500;  //
+const unsigned char TH_KEY_TRES  =  50; //38-190;
+const unsigned char BR_KEY_TRES  =  45; //35-
+const unsigned int  LONG_PRESS   = 500;  //
 
 
 
-volatile struct { //D
+struct { //D
     //unsigned char recup;  //0 - weak, 1 - medium, 2 - strong
     //unsigned char cruise; //1 - on, 0 - off
     //unsigned char tail;   //tail led 1 - on, 0 - off
@@ -146,13 +136,13 @@ volatile struct { //D
     char          spentPercent;     //percent spented from power On
     int           spentCapacity;
     unsigned int  chargedCapacity;
-    unsigned int  sph; //1  km/h
-    unsigned int  spl; //0.01 km/h
-    unsigned int  aveh; //average
+    unsigned int  sph;      //1  km/h
+    unsigned int  spl;      //0.01 km/h
+    unsigned int  aveh;     //average
     unsigned int  avel;
-    unsigned int  milh; //mileage current
+    unsigned int  milh;     //mileage current
     unsigned int  mill;
-    unsigned int  curh; //current
+    unsigned int  curh;     //current
     unsigned int  curl;
     char          remPercent;  //remain percent
     int           remCapacity;
@@ -160,13 +150,14 @@ volatile struct { //D
     unsigned int  tripSec;
     unsigned char powerMin;
     unsigned char powerSec;
-    unsigned int  milTotH;
-    unsigned char milTotL; //  1/10 km
-    unsigned char temp1;
+    unsigned int  milTotH;  //total mileage
+    unsigned char milTotL;
+    unsigned char temp1;    //first temperature of battery
     unsigned char temp2;
     int           voltage;
     unsigned char volth;
     unsigned char voltl;
+    unsigned int  loopsTime;
   }D;
 
 
