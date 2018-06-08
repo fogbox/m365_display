@@ -579,11 +579,11 @@ void displayRoutine(unsigned char var){
       display.println(D.loopsTime);
       break;
     case BIG_AVERAGE:
-      printBig(S23CB0.averageSpeed / 10, "Ave");
+      printBig(S23CB0.averageSpeed / 10, dispBp[1]);
       break;
 
     case BIG_VOLTS:
-      printBig(S25C31.voltage, "Vlt");
+      printBig(S25C31.voltage, dispBp[0]);
       break;
     
     case CELLS:
@@ -1082,9 +1082,11 @@ void displayRoutine(unsigned char var){
   display.display();
 
 }
-void printBig(int n1, char * str){
+void printBig(int n1, const char * str){
   int h;
   int l;
+  char strl[5];
+  strcpy_P(strl, str);
   h = abs(n1 / 100);
   l = abs(n1 % 100);
   display.clearDisplay();
@@ -1109,7 +1111,7 @@ void printBig(int n1, char * str){
   display.setFont(NULL);
   display.setTextSize(2);
   display.setCursor(92, 40);
-  display.print((char*)str);
+  display.print(strl);
   display.display();
 }
 

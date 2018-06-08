@@ -106,10 +106,14 @@ const char bm5[] PROGMEM = {"MILEAGE"};
 const char bm6[] PROGMEM = {"BIG VOLT"};
 const char bm7[] PROGMEM = {"NO BIG"};
 
+const char bp1[] PROGMEM = {"Vlt"};
+const char bp2[] PROGMEM = {"Ave"};
+
 const char * menuMainItems[]  = {mm1, mm2, mm3, mm4};
 const char * menuRecupItems[] = {rm1, rm2, rm3};
 const char * menuOnOffItems[] = {m1,  m2};
 const char * menuBigItems[]   = {bm1, bm2, bm3, bm4, bm5, bm6, bm7};
+const char * dispBp[]         = {bp1, bp2};
 
 
 //const unsigned char BR_RELEASED_TRES = 40; //full range (35 -)    range may be different from one to other machines
