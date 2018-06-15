@@ -2,7 +2,7 @@
 #define MESSAGES_h
 
 #define MAX_MESSAGES  15
-#define MAX_BROADCAST  1
+#define MAX_BROADCAST  2
 
 #include "Arduino.h"
 

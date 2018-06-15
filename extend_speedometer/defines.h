@@ -5,8 +5,8 @@
 #include <gfxfont.h>
 
 #include <avr/pgmspace.h>
-#include "messages.h"
 #include <avr/eeprom.h>
+#include "messages.h"
 
 #define FONT FreeSerifBoldItalic18pt7b
 #include <./Fonts/FreeSerifBoldItalic18pt7b.h>
@@ -24,10 +24,17 @@ Adafruit_SSD1306 display(OLED_RESET);
 #define RX_DISABLE UCSR0B &= ~_BV(RXEN0);
 #define RX_ENABLE  UCSR0B |=  _BV(RXEN0);
 
+const unsigned char TH_KEY_TRES  =  52; //38-190
+const unsigned char BR_KEY_TRES  =  40; //35-169
+const unsigned int  LONG_PRESS   = 500;  //
+const unsigned int  MENU_INITIAL = 100; //ms
+
 //available screens
-enum {NONE, MILEAGE, TEST, BATT, TRIP, MENU, BIG_SPEED, BIG_CURRENT, BIG_AVERAGE, BIG_REMAIN, BIG_MILEAGE, BIG_SPENT, CELLS, CHARGING, NO_BIG, BIG_VOLTS, HIBERNATE};
+enum {NONE, MILEAGE, TEST, BATT, TRIP, MENU, BIG_SPEED, BIG_CURRENT, BIG_AVERAGE, BIG_REMAIN, BIG_MILEAGE, BIG_SPENT, CELLS, CHARGING, NO_BIG, BIG_VOLTS, HIBERNATE, BIG_TIME};
 //available messages
 enum {MESSAGE_KEY_TH = 0, MESSAGE_KEY_BR, MESSAGE_KEY_BOTH, MESSAGE_KEY_MENU, MESSAGE_KEY_RELEASED, MESSAGE_KEY_TH_LONG, MESSAGE_KEY_BR_LONG, MESSAGE_KEY_ANY};
+//available broadcast
+enum {BR_MESSAGE_HIBERNATE_ON = 0, BR_MESSAGE_HIBERNATE_OFF};
 
 
 struct {
@@ -40,25 +47,21 @@ struct {
 }_Query;
 
 volatile unsigned char _NewDataFlag = 0; //assign '1' for renew display once
-//volatile unsigned char _Hibernate = 0;   //flag safely flashing main controller
+volatile unsigned char _Hibernate = 0;   //disable requests. For flashind or other things
 
-const unsigned char cruiseOn[]  PROGMEM  = {0x55, 0xAA, 0x04, 0x20, 0x03, 0x7C, 0x01, 0x00};
-const unsigned char cruiseOff[] PROGMEM  = {0x55, 0xAA, 0x04, 0x20, 0x03, 0x7C, 0x00, 0x00};
-const unsigned char * cruise[] = {cruiseOn, cruiseOff};
 
-const unsigned char ledOn[] PROGMEM  =     {0x55, 0xAA, 0x04, 0x20, 0x03, 0x7D, 0x02, 0x00};
-const unsigned char ledOff[] PROGMEM =     {0x55, 0xAA, 0x04, 0x20, 0x03, 0x7D, 0x00, 0x00};
-const unsigned char * led[] = {ledOn, ledOff};
 
-const unsigned char weak[]   PROGMEM =     {0x55, 0xAA, 0x04, 0x20, 0x03, 0x7B, 0x00, 0x00};
-const unsigned char medium[] PROGMEM =     {0x55, 0xAA, 0x04, 0x20, 0x03, 0x7B, 0x01, 0x00};
-const unsigned char strong[] PROGMEM =     {0x55, 0xAA, 0x04, 0x20, 0x03, 0x7B, 0x02, 0x00};
-const unsigned char * recup[] = {weak, medium, strong};             //0x7C, 0x01 - cruise on
+enum {CMD_CRUISE_ON, CMD_CRUISE_OFF, CMD_LED_ON, CMD_LED_OFF, CMD_WEAK, CMD_MEDIUM, CMD_STRONG};
+struct __attribute__((packed)) CMD{
+  unsigned char len;
+  unsigned char addr;
+  unsigned char rlen;
+  unsigned char param;
+  int           value;
+}_cmd;
 
 
 const unsigned char _commandsWeWillSend[] = {1, 8, 10}; //insert INDEXES of commands, wich will be send in a circle
-
-
         // INDEX                     //0     1     2     3     4     5     6     7     8     9    10    11    12    13    14
 const unsigned char _q[] PROGMEM = {0x3B, 0x31, 0x20, 0x1B, 0x10, 0x1A, 0x69, 0x3E, 0xB0, 0x23, 0x3A, 0x7B, 0x7C, 0x7D, 0x40}; //commands
 const unsigned char _l[] PROGMEM = {   2,   10,    6,    4,   18,   12,    2,    2,   32,    6,    4,    2,    2,    2,   30}; //expected answer length of command
@@ -68,14 +71,12 @@ const unsigned char _f[] PROGMEM = {   1,    1,    1,    1,    1,    2,    2,   
 const unsigned char _h0[]    PROGMEM = {0x55, 0xAA};
 const unsigned char _h1[]    PROGMEM = {0x03, 0x22, 0x01};
 const unsigned char _h2[]    PROGMEM = {0x06, 0x20, 0x61};
+const unsigned char _hc[]    PROGMEM = {0x04, 0x20, 0x03}; //head of control commands
 
-//const unsigned char _h3[]    PROGMEM = {0x04, 0x20, 0x03};
-
-//BUGFIX: 
-struct __attribute__ ((packed)){
-  unsigned char hz;
-  unsigned char th;
-  unsigned char br; 
+struct __attribute__ ((packed)){ //dynamic end of long queries
+  unsigned char hz; //unknown
+  unsigned char th; //current throttle value
+  unsigned char br; //current brake value
 }_end20t;
 
 struct {
@@ -86,10 +87,11 @@ struct {
 }_Menu;
 
 
-const char mm1[] PROGMEM = {"RECUP"};
+const char mm1[] PROGMEM = {"RECUP"}; //main menu items
 const char mm2[] PROGMEM = {"CRUISE"};
 const char mm3[] PROGMEM = {"R-LED"};
 const char mm4[] PROGMEM = {"BIG DISP"};
+const char mm5[] PROGMEM = {"HIBERNATE"};
 
 const char rm1[] PROGMEM = {"WEAK"};
 const char rm2[] PROGMEM = {"MEDIUM"};
@@ -98,36 +100,33 @@ const char rm3[] PROGMEM = {"STRONG"};
 const char m1[]  PROGMEM = {"ON"};
 const char m2[]  PROGMEM = {"OFF"};
 
-const char bm1[] PROGMEM = {"SPEED"};
+const char bm1[] PROGMEM = {"SPEED"};   //BIG screens list
 const char bm2[] PROGMEM = {"AVERAGE"};
 const char bm3[] PROGMEM = {"CURRENT"};
 const char bm4[] PROGMEM = {"SPENT %"};
 const char bm5[] PROGMEM = {"MILEAGE"};
-const char bm6[] PROGMEM = {"BIG VOLT"};
-const char bm7[] PROGMEM = {"NO BIG"};
+const char bm6[] PROGMEM = {"VOLTAGE"};
+const char bm7[] PROGMEM = {"PWR TIME"};
+const char bm8[] PROGMEM = {"NO BIG"};
 
-const char bp1[] PROGMEM = {"Vlt"};
-const char bp2[] PROGMEM = {"Ave"};
+const char bp0[] PROGMEM = {"Vlt"};     //for BIG screens
+const char bp1[] PROGMEM = {"Ave"};
+const char bp2[] PROGMEM = {"Amp"};
+const char bp3[] PROGMEM = {"Mil"};
+const char bp4[] PROGMEM = {"Spd"};
+const char bp5[] PROGMEM = {"Tim"};
 
-const char * menuMainItems[]  = {mm1, mm2, mm3, mm4};
+const char * menuMainItems[]  = {mm1, mm2, mm3, mm4, mm5};
 const char * menuRecupItems[] = {rm1, rm2, rm3};
 const char * menuOnOffItems[] = {m1,  m2};
-const char * menuBigItems[]   = {bm1, bm2, bm3, bm4, bm5, bm6, bm7};
-const char * dispBp[]         = {bp1, bp2};
+const char * menuBigItems[]   = {bm1, bm2, bm3, bm4, bm5, bm6, bm7, bm8};
+const char * dispBp[]         = {bp0, bp1, bp2, bp3, bp4, bp5};
 
 
 //const unsigned char BR_RELEASED_TRES = 40; //full range (35 -)    range may be different from one to other machines
 //const unsigned char TH_RELEASED_TRES = 43; //full range (38 - 196)
 const unsigned char RECV_TIMEOUT =  5;
 const unsigned char RECV_BUFLEN  = 64;
-
-
-const unsigned int  MENU_INITIAL = 100; //ms
-const unsigned char TH_KEY_TRES  =  52; //38-190;
-const unsigned char BR_KEY_TRES  =  40; //35-169
-const unsigned int  LONG_PRESS   = 500;  //
-
-
 
 struct { //D
     //unsigned char recup;  //0 - weak, 1 - medium, 2 - strong
@@ -159,8 +158,8 @@ struct { //D
     unsigned char temp1;    //first temperature of battery
     unsigned char temp2;
     int           voltage;
-    unsigned char volth;
-    unsigned char voltl;
+    //unsigned char volth;
+    //unsigned char voltl;
     unsigned int  loopsTime;
   }D;
 

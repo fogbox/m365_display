@@ -31,10 +31,11 @@ void setup() {
   display.setTextColor(WHITE);
   display.println(F("Hello Kate")); //for wife :) just my fun tradition for devices with screens
   display.println();
-  display.println(F("  no BUS"));
+  display.println(F("- no BUS -"));
 
   display.display();
   delay(200);
+
 
   _Menu.dispVar = TRIP;
   _Menu.bigVar = eeprom_read_byte(0);
@@ -47,22 +48,32 @@ void loop() {
   static unsigned int  loopsTime = 0;
   counter++;
 
-  if(counter >= 1000){
+  if(counter >= 1000){            //simple performance meter - shows maximum ever "loop time" in microseconds
     loopsTime = millis() - timer;
     if(loopsTime > D.loopsTime){
       D.loopsTime = loopsTime;
     }
     timer = millis();
     counter = 0;
+    if(_Hibernate == 1){
+      _NewDataFlag = 1;
+    }
   }
 
-  dataFSM();  
-  keyProcessFSM();
-  menuControlFSM();
-  screenSwitcherFSM();
+  dataFSM();            //communication with m365
+  keyProcessFSM();      //tracks throttle and brake and send messages for menuControlFSM()
+  menuControlFSM();     //switch menu variables
+  screenSwitcherFSM();  //controls info on display
 
 
-  if(_Query.prepared == 0){
+  if(Message.GetBroadcast(BR_MESSAGE_HIBERNATE_ON)){
+    _Hibernate = 1;
+  }
+  if(Message.GetBroadcast(BR_MESSAGE_HIBERNATE_OFF)){
+    _Hibernate = 0;
+  }
+
+  if(_Query.prepared == 0){     //it's for possibility sending custom queries instead predetermined
     prepareNextQuery();
   }
 
@@ -72,15 +83,25 @@ void loop() {
     displayRoutine(_Menu.dispVar);
   }
 
+
   Message.Process();
-  //Message.ProcessBroadcast();
+  Message.ProcessBroadcast();
 }
 
 void screenSwitcherFSM(){ //switch screen between stall and run (BIG_DIGITS) modes
  static unsigned char step = 0;
  static unsigned char dispVar;
-  
-  if(_Menu.dispVar == MENU){    //switching not needed
+
+  if(Message.GetBroadcast(BR_MESSAGE_HIBERNATE_ON)){
+    dispVar = _Menu.dispVar;
+    _Menu.dispVar = HIBERNATE;
+  }
+
+  if(Message.GetBroadcast(BR_MESSAGE_HIBERNATE_OFF)){
+    _Menu.dispVar = dispVar;
+  }
+
+  if(_Menu.dispVar == MENU || _Menu.dispVar == HIBERNATE){    //switching not needed
     return;
   }
 
@@ -180,7 +201,7 @@ void menuControlFSM(){    //store display mode, switch on display menu, accept m
         switch(_Menu.activeMenu){       //scrolling main menu
           case 0:
             _Menu.selItem++;
-            if(_Menu.selItem > 4){
+            if(_Menu.selItem > 5){
               _Menu.selItem = 1;
             }
             break;
@@ -204,7 +225,7 @@ void menuControlFSM(){    //store display mode, switch on display menu, accept m
             break;
           case 4: //big display menu
             _Menu.selItem ++;
-            if(_Menu.selItem > 7){
+            if(_Menu.selItem > 8){
               _Menu.selItem = 1;
             }
             break;
@@ -212,7 +233,6 @@ void menuControlFSM(){    //store display mode, switch on display menu, accept m
       }
 
       if(Message.Get(MESSAGE_KEY_TH_LONG)){   //get seleted item and send appropriate command
-        
         timer = millis();
         switch(_Menu.activeMenu){
           case 0: //main menu
@@ -249,8 +269,11 @@ void menuControlFSM(){    //store display mode, switch on display menu, accept m
                   case BIG_VOLTS:
                     _Menu.selItem = 6;
                     break;
-                  case NO_BIG:
+                  case BIG_TIME:
                     _Menu.selItem = 7;
+                    break;
+                  case NO_BIG:
+                    _Menu.selItem = 8;
                     break;
                     
                   default:
@@ -259,29 +282,46 @@ void menuControlFSM(){    //store display mode, switch on display menu, accept m
                 }
                 _Menu.activeMenu = 4;
                 break;
+              case 5: //hibernate
+                if(_Hibernate == 0){
+                  Message.PostBroadcast(BR_MESSAGE_HIBERNATE_ON);
+                }else{
+                  Message.PostBroadcast(BR_MESSAGE_HIBERNATE_OFF);
+                }
+                step = 2;
+                break;
             }
             break;
           case 1: //recup menu
             switch(_Menu.selItem){
               case 1: //weak
+                prepareCommand(CMD_WEAK);
+                /*
                 memcpy_P(&_Query.buf, recup[0], 8);
                 _Query.DataLen = 6;
                 _Query.cs = calcCs((unsigned char*)&_Query.buf[2], _Query.DataLen);    //calculate cs of buffer
                 _Query.prepared = 1;
+                */
                 step = 2;
                 break;
               case 2: //medium
+                prepareCommand(CMD_MEDIUM);
+                /*
                 memcpy_P(&_Query.buf, recup[1], 8);
                 _Query.DataLen = 6;
                 _Query.cs = calcCs((unsigned char*)&_Query.buf[2], _Query.DataLen);    //calculate cs of buffer
                 _Query.prepared = 1;
+                */
                 step = 2;
                 break;
               case 3: //strong
+                prepareCommand(CMD_STRONG);
+                /*
                 memcpy_P(&_Query.buf, recup[2], 8);
                 _Query.DataLen = 6;
                 _Query.cs = calcCs((unsigned char*)&_Query.buf[2], _Query.DataLen);    //calculate cs of buffer
                 _Query.prepared = 1;
+                */
                 step = 2;
                 break;
             }
@@ -289,17 +329,23 @@ void menuControlFSM(){    //store display mode, switch on display menu, accept m
           case 2:  //cruise menu
             switch(_Menu.selItem){
               case 1: //on
+                prepareCommand(CMD_CRUISE_ON);
+                /*
                 memcpy_P(&_Query.buf, cruise[0], 8);
                 _Query.DataLen = 6;
                 _Query.cs = calcCs((unsigned char*)&_Query.buf[2], _Query.DataLen);    //calculate cs of buffer
                 _Query.prepared = 1;
+                */
                 step = 2;
                 break;
               case 2: //off
+                prepareCommand(CMD_CRUISE_OFF);
+                /*
                 memcpy_P(&_Query.buf, cruise[1], 8);
                 _Query.DataLen = 6;
                 _Query.cs = calcCs((unsigned char*)&_Query.buf[2], _Query.DataLen);    //calculate cs of buffer
                 _Query.prepared = 1;
+                */
                 step = 2;
                 break;
             }
@@ -307,17 +353,23 @@ void menuControlFSM(){    //store display mode, switch on display menu, accept m
           case 3:  //led menu
             switch(_Menu.selItem){
               case 1: //on
+                prepareCommand(CMD_LED_ON);
+                /*
                 memcpy_P(&_Query.buf, led[0], 8);
                 _Query.DataLen = 6;
                 _Query.cs = calcCs((unsigned char*)&_Query.buf[2], _Query.DataLen);    //calculate cs of buffer
                 _Query.prepared = 1;
+                */
                 step = 2;
                 break;
               case 2: //off
+                prepareCommand(CMD_LED_OFF);
+                /*
                memcpy_P(&_Query.buf, led[1], 8);
                 _Query.DataLen = 6;
                 _Query.cs = calcCs((unsigned char*)&_Query.buf[2], _Query.DataLen);    //calculate cs of buffer
                 _Query.prepared = 1;
+                */
                 step = 2;
                 break;
             }
@@ -343,6 +395,9 @@ void menuControlFSM(){    //store display mode, switch on display menu, accept m
                 _Menu.bigVar = BIG_VOLTS;
                 break;
               case 7:
+                _Menu.bigVar = BIG_TIME;
+                break;
+              case 8:
                 _Menu.bigVar = NO_BIG;
               break;
             }
@@ -428,8 +483,8 @@ void calculate(){
       D.temp1 = S25C31.temp1 - 20;
       D.temp2 = S25C31.temp2 - 20;
       D.voltage = S25C31.voltage;
-      D.volth = S25C31.voltage / 100;
-      D.voltl = S25C31.voltage % 100;
+      //D.volth = S25C31.voltage / 100;
+      //D.voltl = S25C31.voltage % 100;
       D.spentPercent  = abs(D.initialPercent  - D.remPercent);
       D.spentCapacity = abs(D.initialCapacity - D.remCapacity);
       break;
@@ -444,8 +499,8 @@ void calculate(){
       D.avel = S23CB0.averageSpeed % 1000;
       break;
     case 0x3A: //10
-      D.tripMin = S23C3A.ridingTime / 60;     //riding time
-      D.tripSec = S23C3A.ridingTime % 60;
+      D.tripMin  = S23C3A.ridingTime  / 60;     //riding time
+      D.tripSec  = S23C3A.ridingTime  % 60;
       D.powerMin = S23C3A.powerOnTime / 60;   //power on time
       D.powerSec = S23C3A.powerOnTime % 60;
       break;
@@ -574,18 +629,36 @@ void displayRoutine(unsigned char var){
       display.setFont(NULL);
       display.setTextSize(2);
       display.setCursor(0,0);
-      display.println("HIBERNATE");
-      display.print("Lt: ");
+      display.println(F("HIBERNATE"));
+      display.print(F("Lt:"));
       display.println(D.loopsTime);
+      display.print(F("TH:"));
+      display.println(D.th);
+      display.print(F("BR:"));
+      display.println(D.br);
+      break;
+    case BIG_TIME:
+      unsigned int tTime;
+      tTime  = D.powerMin * 100;
+      tTime += D.powerSec;
+      printBig(tTime, dispBp[5]);
+      break;   
+    case BIG_VOLTS:
+      printBig(S25C31.voltage, dispBp[0]);
       break;
     case BIG_AVERAGE:
       printBig(S23CB0.averageSpeed / 10, dispBp[1]);
       break;
-
-    case BIG_VOLTS:
-      printBig(S25C31.voltage, dispBp[0]);
+    case BIG_CURRENT:                               //-- BIG CURRENT
+      printBig(S25C31.current, dispBp[2]);
       break;
-    
+    case BIG_MILEAGE:                              //-- BIG MILEAGE
+      printBig(S23CB0.mileageCurrent, dispBp[3]);
+      break;
+    case BIG_SPEED:                                 //-- BIG SPEED
+      printBig(S23CB0.speed / 10, dispBp[4]);
+      break;
+
     case CELLS:
       display.setFont(NULL);
       display.setTextSize(1);
@@ -614,9 +687,9 @@ void displayRoutine(unsigned char var){
         display.print(v);
         
         if(counter < 5){
-          display.print("   ");
+          display.print(F("   "));
         }else{
-          display.print("  ");
+          display.print(F("  "));
         }
         display.print(counter + 5);       //column 2
         display.print(": ");
@@ -649,11 +722,24 @@ void displayRoutine(unsigned char var){
       }
       display.println(v);
       
-      display.print("t1:");         //print battery temperatures
+      display.print(F("t1:"));         //print battery temperatures
       display.print((int)D.temp1);
-      display.print(" t2:");
+      display.print(F(" t2:"));
       display.print((int)D.temp2);
-      display.print(F(" Lt:"));
+      
+      //display.print(F(" Lt:"));
+      //display.print((unsigned int)D.loopsTime);
+
+      display.setCursor(90, 40); //84 one dig 6 pix wide
+      display.print(F("TH:"));
+      display.print(D.th);
+
+      display.setCursor(90, 48);
+      display.print(F("BR:"));
+      display.print(D.br);
+
+      display.setCursor(90, 56);
+      display.print(F("LT:"));
       display.print((unsigned int)D.loopsTime);
       break;
     case CHARGING:
@@ -733,76 +819,8 @@ void displayRoutine(unsigned char var){
       display.setTextSize(2);
       display.setCursor(92, 40);
       display.print(F("Spn"));
-
-      break;
-    case BIG_CURRENT:                               //-- BIG CURRENT
-      display.setFont(&FONT);
-      display.setTextSize(2);
-      if(S25C31.current < 0){//current
-        display.setCursor(0,45); 
-        display.print('-');
-      }
-      display.setCursor(18,52); 
-
-      if(D.curh < 10){
-        display.setCursor(53,52);
-      }
-      display.print(D.curh);
-      
-      display.setTextSize(1); //mini text
-      display.setCursor(90,32);
-      if(D.curl < 10){
-        display.print('0');
-      }
-      display.print(D.curl);
-      display.setFont(NULL);
-      display.setTextSize(2);
-      display.setCursor(92, 40);
-      display.print(F("Amp"));
-      break;
-    
-    case BIG_SPEED:                                 //-- BIG SPEED
-      display.setFont(&FONT);
-      display.setTextSize(2);
-      display.setCursor(18,52); 
-      if(D.sph < 10){
-        display.setCursor(53,52);
-      }
-      display.print(D.sph);
-      
-      display.setTextSize(1);   //mini text
-      display.setCursor(90,32);
-      if(D.spl < 10){
-        display.print('0');
-      }
-      display.print(D.spl);
-      display.setFont(NULL);
-      display.setTextSize(2);
-      display.setCursor(92, 40);
-      display.print(F("Spd"));
       break;
 
-    case BIG_MILEAGE:                              //-- BIG MILEAGE
-      display.setFont(&FONT);
-      display.setTextSize(2);
-      display.setCursor(18,52); 
-      if(D.milh < 10){
-        display.setCursor(53,52);
-      }
-      display.print(D.milh);
-      
-      display.setTextSize(1);   //mini text
-      display.setCursor(90,32);
-      if(D.mill < 10){
-        display.print('0');
-      }
-      display.print(D.mill);
-      display.setFont(NULL);
-      display.setTextSize(2);
-      display.setCursor(92, 40);
-      display.print(F("Dst"));
-      break;
-      
     case NONE: //U can`t touch this :)
       return;
       break;
@@ -880,8 +898,6 @@ void displayRoutine(unsigned char var){
         display.print(' ');
       }
       display.print((int)D.remCapacity);
-
-
       break;
     case TRIP: //stall + brake
       display.setTextSize(1);    //microtext
@@ -1071,18 +1087,25 @@ void displayRoutine(unsigned char var){
       display.print(D.curl);
 
       display.setTextSize(1);
-      display.print("A");
+      display.print('A');
       display.setTextSize(2);
 
       break;
       default:
+        display.setFont(NULL);
+        display.setTextSize(2);
+        display.clearDisplay();
+        display.setCursor(0,0);
+        display.println(F("Select BIG"));
+        display.println(F("into menu"));
         break;
   }
 
   display.display();
 
 }
-void printBig(int n1, const char * str){
+
+void printBig(int n1, const char * str){ // n1 format: 1234 will be printed as 12.34
   int h;
   int l;
   char strl[5];
@@ -1201,6 +1224,7 @@ void dataFSM(){
 }
 void processPacket(unsigned char * data, unsigned char len){
   unsigned char RawDataLen;
+  //unsigned char unknownPacket = 0;
   RawDataLen = len - sizeof(AnswerHeader) - 2;//(crc)
 
   switch(AnswerHeader.addr){ //store data into each other structure
@@ -1211,7 +1235,7 @@ void processPacket(unsigned char * data, unsigned char len){
             case 0x64: //BLE ask controller
               break;
             case 0x65:
-              if(_Query.prepared == 1){// && _Hibernate == 0){
+              if(_Query.prepared == 1 && _Hibernate == 0){
                 writeQuery();
               }
               memcpy((void*)& S20C00HZ65, (void*)data, RawDataLen);
@@ -1393,8 +1417,6 @@ void processPacket(unsigned char * data, unsigned char len){
 
 void prepareNextQuery(){
   static unsigned char index = 0;
-
-
   switch(_Menu.dispVar){
     case CHARGING:
       _Query._dynQueries[0]=1;
@@ -1477,11 +1499,11 @@ unsigned char preloadQueryFromTable(unsigned char index){
       hLen = sizeof(_h1);
       pe = NULL;
       break;
-    case 2: //h2 + end20
+    case 2: //h2 + end20t
       ph = (unsigned char*)&_h2;
       hLen = sizeof(_h2);
 
-      //BUGFIX: bug with extra-brake
+      //copies last known throttle & brake values
       _end20t.hz = 0x02;
       _end20t.th = S20C00HZ65.throttle;
       _end20t.br = S20C00HZ65.brake;
@@ -1520,6 +1542,61 @@ unsigned char preloadQueryFromTable(unsigned char index){
   _Query.cs = calcCs((unsigned char*)&_Query.buf[2], _Query.DataLen);    //calculate cs of buffer
   return 0;
 }
+void prepareCommand(unsigned char cmd){
+  unsigned char * ptrBuf;
+
+  _cmd.len  =    4;
+  _cmd.addr = 0x20;
+  _cmd.rlen = 0x03;
+
+  switch(cmd){
+    case CMD_CRUISE_ON:   //0x7C, 0x01, 0x00
+      _cmd.param = 0x7C;
+      _cmd.value =    1;
+      break;
+    case CMD_CRUISE_OFF:  //0x7C, 0x00, 0x00
+      _cmd.param = 0x7C;
+      _cmd.value =    0;
+      break;
+    case CMD_LED_ON:      //0x7D, 0x02, 0x00
+      _cmd.param = 0x7D;  
+      _cmd.value =    2;
+      break;
+    case CMD_LED_OFF:     //0x7D, 0x00, 0x00
+      _cmd.param = 0x7D;
+      _cmd.value =    0;
+      break;
+    case CMD_WEAK:        //0x7B, 0x00, 0x00
+      _cmd.param = 0x7B;
+      _cmd.value =    0;
+      break;
+    case CMD_MEDIUM:      //0x7B, 0x01, 0x00
+      _cmd.param = 0x7B;
+      _cmd.value =    1;
+      break;
+    case CMD_STRONG:      //0x7B, 0x02, 0x00
+      _cmd.param = 0x7B;
+      _cmd.value =    2;
+      break;
+    default:
+      return; //undefined command - do nothing
+      break;
+  }
+  ptrBuf = (unsigned char*)&_Query.buf;
+
+  memcpy_P((void*)ptrBuf, (void*)_h0, sizeof(_h0));  //copy preamble
+  ptrBuf += sizeof(_h0);
+
+  memcpy((void*)ptrBuf, (void*)&_cmd, sizeof(_cmd)); //copy command body
+  ptrBuf += sizeof(_cmd);
+
+  //unsigned char 
+  _Query.DataLen = ptrBuf - (unsigned char*)&_Query.buf[2];               //calculate length of data in buf, w\o preamble and cs
+  _Query.cs = calcCs((unsigned char*)&_Query.buf[2], _Query.DataLen);     //calculate cs of buffer
+
+  _Query.prepared = 1;
+}
+
 void writeQuery(){
   RX_DISABLE;
   XIAOMI_PORT.write((unsigned char*)&_Query.buf, _Query.DataLen + 2);     //DataLen + length of preamble
@@ -1535,41 +1612,13 @@ unsigned int calcCs(unsigned char * data, unsigned char len){
   }
   return cs;
 }
-
+/*
 void printErrno(unsigned char err){
     display.clearDisplay();
     display.setFont(NULL);
     display.setCursor(0,0);
     display.print(err);
     display.display();
-    delay(20);
+    delay(200);
 }
-void testDisplay(unsigned char var){
-  display.setTextColor(WHITE);
-  display.clearDisplay();
-  display.setCursor(0,0);
-
-  switch (var){
-    case 0:
-      display.print("HZ");
-      break;
-    case 1:
-      display.print("BR ");
-      display.print(D.th);
-      break;
-    case 2:
-      display.print("TH ");
-      display.print(D.th);
-      break;
-    case 3:
-      display.print("BOTH ");
-      display.print(D.th);
-      break;
-    case 4:
-      display.print("MENU ");
-      display.print(D.th);
-      break;
-  }
-  display.display();
-}
-
+*/
