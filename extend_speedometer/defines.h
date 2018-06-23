@@ -24,8 +24,8 @@ Adafruit_SSD1306 display(OLED_RESET);
 #define RX_DISABLE UCSR0B &= ~_BV(RXEN0);
 #define RX_ENABLE  UCSR0B |=  _BV(RXEN0);
 
-const unsigned char TH_KEY_TRES  =  52; //38-190
-const unsigned char BR_KEY_TRES  =  40; //35-169
+const unsigned char TH_KEY_TRES  =  53; //38-190
+const unsigned char BR_KEY_TRES  =  43; //35-169
 const unsigned int  LONG_PRESS   = 500;  //
 const unsigned int  MENU_INITIAL = 100; //ms
 
