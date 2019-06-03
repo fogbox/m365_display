@@ -5,7 +5,7 @@
 #include <SoftwareSerial.h>
 
 
-#include "screens.h"
+//#include "screens.h"
 #include "messages.h"
 
 //#define SCR_TESTING //for screens creation
