@@ -12,13 +12,7 @@
 #include <./Fonts/FreeSerifBoldItalic18pt7b.h>
 
 MessagesClass Message;
-
-#define OLED_RESET -1 //no reset
-Adafruit_SSD1306 display(OLED_RESET);
-
-#if (SSD1306_LCDHEIGHT != 64)
-#error("Height incorrect, please fix Adafruit_SSD1306.h!");
-#endif
+Adafruit_SSD1306 display(128, 64, &Wire, -1, 400000UL, 100000UL);
 
 #define XIAOMI_PORT Serial
 #define RX_DISABLE UCSR0B &= ~_BV(RXEN0);
@@ -70,14 +64,9 @@ const unsigned char _f[] PROGMEM = {   1,    1,    1,    1,    1,    2,    2,   
 //wrappers for known commands
 const unsigned char _h0[]    PROGMEM = {0x55, 0xAA};
 const unsigned char _h1[]    PROGMEM = {0x03, 0x22, 0x01};
-const unsigned char _h2[]    PROGMEM = {0x06, 0x20, 0x61};
+const unsigned char _h2[]    PROGMEM = {0x03, 0x20, 0x01};
 const unsigned char _hc[]    PROGMEM = {0x04, 0x20, 0x03}; //head of control commands
 
-struct __attribute__ ((packed)){ //dynamic end of long queries
-  unsigned char hz; //unknown
-  unsigned char th; //current throttle value
-  unsigned char br; //current brake value
-}_end20t;
 
 struct {
   unsigned char activeMenu; //0 - nomenu (0,1,2,3,4)

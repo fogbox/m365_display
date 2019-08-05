@@ -1,26 +1,5 @@
 #include "defines.h"
 
-
-/*
- * screen1 //brake
- *  distance
- *  percent cost
- *  capacity cost
- *  time of ride
- *  time power on
- * 
- * screen2 //throttle
- *  remain percent
- *  remain capacity
- *  B-temp 1
- *  B-temp 2
- * 
- * screen3 //both
- *  current
- *  temperature
- *  total mileage
- */
-
 void setup() {
   XIAOMI_PORT.begin(115200);
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);  // initialize with the I2C addr 0x3C (for the 128x64)
@@ -82,7 +61,6 @@ void loop() {
     calculate();
     displayRoutine(_Menu.dispVar);
   }
-
 
   Message.Process();
   Message.ProcessBroadcast();
@@ -1499,16 +1477,10 @@ unsigned char preloadQueryFromTable(unsigned char index){
       hLen = sizeof(_h1);
       pe = NULL;
       break;
-    case 2: //h2 + end20t
+    case 2: //h1 only
       ph = (unsigned char*)&_h2;
       hLen = sizeof(_h2);
-
-      //copies last known throttle & brake values
-      _end20t.hz = 0x02;
-      _end20t.th = S20C00HZ65.throttle;
-      _end20t.br = S20C00HZ65.brake;
-      pe = (unsigned char*)&_end20t;
-      eLen = sizeof(_end20t);
+      pe = NULL;
       break;
   }
 
@@ -1612,13 +1584,3 @@ unsigned int calcCs(unsigned char * data, unsigned char len){
   }
   return cs;
 }
-/*
-void printErrno(unsigned char err){
-    display.clearDisplay();
-    display.setFont(NULL);
-    display.setCursor(0,0);
-    display.print(err);
-    display.display();
-    delay(200);
-}
-*/
